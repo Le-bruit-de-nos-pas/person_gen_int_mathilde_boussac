@@ -6,17 +6,18 @@ library(svglite)
 
 
 
-data_PRS_badge_simple <- read_excel(path = "../data/data_PRS_badge_simple.xlsx")
+data_PRS_badge_simple <- read_excel(path = "../data/data_PRS_badge_simplifié_18_PRS.xlsx")
+
+names(data_PRS_badge_simple)
 
 df_pers_gene <- data_PRS_badge_simple %>% select(SUBJID, GROUPE, 
                                  ns, ha, rd, ps, sd, c, st,
                                  PGS000903,	PGS002738,	PGS002115,	PGS001901,	PGS002037,	
                                  PGS003057,	PGS002098,	PGS001118,	PGS002124,	PGS002746,
-                                 PGS003753,	PGS004230,	PGS000205,	PGS002222,	PGS000777,
-                                 PGS004062,	PGS004451,	PGS000907,	PGS001016,	PGS002342,	
-                                 PGS002231,	PGS002135,	PGS003724)
+                                 PGS003753,	PGS004230,	PGS000205,	PGS002222,	PGS004451,
+                                 PGS000907,	PGS001016,	PGS002342)
 
-sum(is.na(df_pers_gene)) # 322
+sum(is.na(df_pers_gene)) # 252
 
 unique(df_pers_gene$GROUPE)
 
@@ -29,8 +30,6 @@ personality_vars <- c("ns", "ha", "rd", "ps", "sd", "c", "st")
 pgs_vars <- colnames(df_pers_gene)[grepl("^PGS", colnames(df_pers_gene))]
 
 unique(data_PRS_badge_simple$GROUPE)
-
-
 
 
 
@@ -413,10 +412,11 @@ results_exp <- results_exp %>% select(personality, genetic, OR_pers:Upper_intera
 
 results_exp %>% filter(personality=="ha" & grepl("907", genetic))
 results_exp %>% filter(personality=="ha" & grepl("3753", genetic))
-results_exp %>% filter(personality=="sd" & grepl("2231", genetic))
 results_exp %>% filter(personality=="rd" & grepl("2115", genetic))
+results_exp %>% filter(personality=="sd" & grepl("2231", genetic))
 
 fwrite(results_exp, "../out/summaries/results_exp_probability_exp_logisitc_regression.txt")
+
 
 
 # Reshape to long format for OR and CIs
@@ -444,7 +444,7 @@ ggplot(aes(x = OR, y = fct_rev(factor(pair)), color = type)) +
   geom_vline(xintercept = 1, linetype = "dashed") +   # reference line at OR = 1
   scale_x_log10() +  # log scale for odds ratios
   labs(x = "Odds Ratio (log scale)", y = "Personality × PGS Pair", color = "Effect Type") +
-  facet_wrap(~type) +
+  facet_wrap(~type, scales="free_x") +
   scale_colour_manual(values=c("#bf4438", "#283f60", "black")) +
   theme_minimal() +  
   theme(
@@ -489,7 +489,15 @@ fwrite(interactins_types_classification, "../out/summaries/interactins_types_cla
 interactins_types_classification %>% group_by(interaction_type) %>% count()
 interactins_types_classification %>% group_by(interaction_direction) %>% count()
 
+# interaction_type     n
+# <chr>            <int>
+#   1 Attenuating         77
+# 2 Multiplying         49
 
+# interaction_direction     n
+# <chr>                 <int>
+#   1 Negative (↓ odds)        53
+# 2 Positive (↑ odds)        73
 
 
 
@@ -534,6 +542,52 @@ for (i in 1:(length(personality_vars)-1)) {
 results
 
 fwrite(results, "../out/summaries/results_log_odds_logisitc_regression_personality_only.txt")
+
+
+
+
+results
+
+results_exp <- results %>%
+  mutate(
+    # var1 OR + 95% CI
+    OR_var1 = exp(coef_var1   ),
+    Lower_var1 = exp(coef_var1    - 1.96 * se_var1    ),
+    Upper_var1 = exp(coef_var1    + 1.96 * se_var1    ),
+    
+    # var2 OR + 95% CI
+    OR_var2 = exp(coef_var2   ),
+    Lower_var2 = exp(coef_var2 - 1.96 * se_var2    ),
+    Upper_var2 = exp(coef_var2 + 1.96 * se_var2    ),
+    
+    # Interaction OR + 95% CI
+    OR_inter = exp(coef_interaction),
+    Lower_inter = exp(coef_interaction - 1.96 * se_interaction),
+    Upper_inter = exp(coef_interaction + 1.96 * se_interaction),
+    
+    
+    # FINAL Interaction OR + 95% CI
+    sum_coef = coef_var1 + coef_var2 + coef_interaction,
+    sum_se = sqrt(se_var1^2 + se_var2^2 + se_interaction^2),
+    
+    OR_interaction = exp(sum_coef),
+    Lower_interaction = exp(sum_coef - 1.96 * sum_se),
+    Upper_interaction = exp(sum_coef + 1.96 * sum_se)
+  ) %>%
+  select(-sum_coef, -sum_se)  # remove intermediate calculation columns if you want
+
+
+results_exp <- results_exp %>% select(var1, var2, OR_var1:Upper_interaction)
+
+results_exp %>% filter(var1=="ha" & var2=="st")
+
+fwrite(results_exp, "../out/summaries/results_exp_probability_exp_logisitc_regression.txt")
+
+
+
+
+
+
 
 
 # Pivot for interaction p-values heatmap
@@ -620,6 +674,49 @@ results
 fwrite(results, "../out/summaries/results_log_odds_logisitc_regression_polygenic_only.txt")
 
 
+
+
+
+results
+
+results_exp <- results %>%
+  mutate(
+    # var1 OR + 95% CI
+    OR_var1 = exp(coef_var1   ),
+    Lower_var1 = exp(coef_var1    - 1.96 * se_var1    ),
+    Upper_var1 = exp(coef_var1    + 1.96 * se_var1    ),
+    
+    # var2 OR + 95% CI
+    OR_var2 = exp(coef_var2   ),
+    Lower_var2 = exp(coef_var2 - 1.96 * se_var2    ),
+    Upper_var2 = exp(coef_var2 + 1.96 * se_var2    ),
+    
+    # Interaction OR + 95% CI
+    OR_inter = exp(coef_interaction),
+    Lower_inter = exp(coef_interaction - 1.96 * se_interaction),
+    Upper_inter = exp(coef_interaction + 1.96 * se_interaction),
+    
+    
+    # FINAL Interaction OR + 95% CI
+    sum_coef = coef_var1 + coef_var2 + coef_interaction,
+    sum_se = sqrt(se_var1^2 + se_var2^2 + se_interaction^2),
+    
+    OR_interaction = exp(sum_coef),
+    Lower_interaction = exp(sum_coef - 1.96 * sum_se),
+    Upper_interaction = exp(sum_coef + 1.96 * sum_se)
+  ) %>%
+  select(-sum_coef, -sum_se)  # remove intermediate calculation columns if you want
+
+
+results_exp <- results_exp %>% select(var1, var2, OR_var1:Upper_interaction)
+
+
+fwrite(results_exp, "../out/summaries/results_log_odds_logisitc_regression_polygenic_only_exp.txt")
+
+
+
+
+
 # Pivot for interaction p-values heatmap
 heat_data <- results %>%
   select(var1, var2, coef_interaction, pval_interaction) %>%
@@ -652,6 +749,13 @@ interactions_heat_map <- ggplot(heat_data, aes(x = var1, y = var2, fill = coef_i
 
 interactions_heat_map
 ggsave(filename = paste0("../out/plots/interactions_heat_map_log_odds", ".svg"), plot = interactions_heat_map, width = 9, height = 9, device = "svg")
+
+
+
+
+
+
+
 
 
 
@@ -1220,55 +1324,6 @@ fwrite(pgs, "pgs_cluster_vars_summary.csv")
 
 library(brms)
 
-# Create interaction model with all relevant priors (flat or weakly informative)
-bayes_model_c_PGS002231 <- brm(
-  formula = GROUPE ~ c * PGS002231,
-  data = df_scaled,
-  family = bernoulli(),
-  prior = c(
-    prior(normal(0, 1), class = "b"),
-    prior(normal(0, 1), class = "Intercept")
-  ),
-  chains = 4, iter = 2000, cores = 4,
-  seed = 42
-)
-
-# Summarize
-summary(bayes_model_c_PGS002231)
-plot_bayes_model_c_PGS002231 <- plot(bayes_model_c_PGS002231)
-
-plot_bayes_model_c_PGS002231 <- plot_bayes_model_c_PGS002231[[1]]
-
-ggsave(filename = paste0("../out/plots/plot_bayes_model_c_PGS002231", ".svg"), plot = plot_bayes_model_c_PGS002231, width = 5, height = 5, device = "svg")
-
-
-
-
-
-# Create interaction model with all relevant priors (flat or weakly informative)
-bayes_model_sd_PGS002231 <- brm(
-  formula = GROUPE ~ sd * PGS002231,
-  data = df_scaled,
-  family = bernoulli(),
-  prior = c(
-    prior(normal(0, 1), class = "b"),
-    prior(normal(0, 1), class = "Intercept")
-  ),
-  chains = 4, iter = 2000, cores = 4,
-  seed = 42
-)
-
-
-# Summarize
-summary(bayes_model_sd_PGS002231)
-plot_bayes_model_sd_PGS002231 <- plot(bayes_model_sd_PGS002231)
-
-plot_bayes_model_sd_PGS002231 <- plot_bayes_model_sd_PGS002231[[1]]
-
-ggsave(filename = paste0("../out/plots/plot_bayes_model_sd_PGS002231", ".svg"), plot = plot_bayes_model_sd_PGS002231, width = 5, height = 5, device = "svg")
-
-
-
 
 
 # Create interaction model with all relevant priors (flat or weakly informative)
@@ -1339,9 +1394,9 @@ bayes_model_ns_PGS000907 <- brm(
 summary(bayes_model_ns_PGS000907)
 plot_bayes_model_ns_PGS000907 <- plot(bayes_model_ns_PGS000907)
 
-plot_bayes_model_ns_PGS000907 <- plot(bayes_model_ns_PGS000907)[[1]]
+plot_bayes_model_ns_PGS000907 <- plot_bayes_model_ns_PGS000907[[1]]
 
-ggsave(filename = paste0("../out/plots/plot_bayes_model_ns_PGS000907", ".svg"), plot = bayes_model_ns_PGS000907, width = 5, height = 5, device = "svg")
+ggsave(filename = paste0("../out/plots/plot_bayes_model_ns_PGS000907", ".svg"), plot = plot_bayes_model_ns_PGS000907, width = 5, height = 5, device = "svg")
 
 
 
@@ -1368,4 +1423,28 @@ plot_bayes_model_c_PGS003753 <- plot(bayes_model_c_PGS003753)
 plot_bayes_model_c_PGS003753 <- plot(bayes_model_c_PGS003753)[[1]]
 
 ggsave(filename = paste0("../out/plots/plot_bayes_model_c_PGS003753", ".svg"), plot = plot_bayes_model_c_PGS003753, width = 5, height = 5, device = "svg")
+
+
+
+
+# Create interaction model with all relevant priors (flat or weakly informative)
+bayes_model_sd_PGS000903 <- brm(
+  formula = GROUPE ~ sd * PGS000903,
+  data = df_scaled,
+  family = bernoulli(),
+  prior = c(
+    prior(normal(0, 1), class = "b"),
+    prior(normal(0, 1), class = "Intercept")
+  ),
+  chains = 4, iter = 2000, cores = 4,
+  seed = 42
+)
+
+# Summarize
+summary(bayes_model_sd_PGS000903)
+plot_bayes_model_sd_PGS000903 <- plot(bayes_model_sd_PGS000903)
+
+plot_bayes_model_sd_PGS000903 <- plot_bayes_model_sd_PGS000903[[1]]
+
+ggsave(filename = paste0("../out/plots/plot_bayes_model_sd_PGS000903", ".svg"), plot = plot_bayes_model_sd_PGS000903, width = 5, height = 5, device = "svg")
 
